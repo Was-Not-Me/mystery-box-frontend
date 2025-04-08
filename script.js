@@ -1,72 +1,95 @@
-const SERVER_URL = 'https://your-backend-url.com'; // Replace with your Render backend URL
+const SERVER_URL = 'https://server-zd6g.onrender.com'; //  Replace with your backend URL if needed
 
-document.addEventListener('DOMContentLoaded', () => {
-  const form = document.getElementById('uploadForm');
-  const typeField = document.getElementById('type');
-  const fileField = document.getElementById('fileField');
-  const codeField = document.getElementById('codeField');
-  const boxDisplay = document.getElementById('boxDisplay');
+let adminAccess = false;
 
-  typeField.addEventListener('change', () => {
-    if (typeField.value === 'code') {
-      fileField.style.display = 'none';
-      codeField.style.display = 'block';
-    } else {
-      fileField.style.display = 'block';
-      codeField.style.display = 'none';
+async function fetchBox() {
+  try {
+    const res = await fetch(`${SERVER_URL}/api/box`);
+    const box = await res.json();
+    const boxContainer = document.getElementById('mysteryBox');
+    boxContainer.innerHTML = '';
+
+    if (box.type === 'image') {
+      boxContainer.innerHTML = `<h4>${box.title}</h4><img src="${SERVER_URL}${box.filePath}" class="img-fluid">`;
+    } else if (box.type === 'audio') {
+      boxContainer.innerHTML = `<h4>${box.title}</h4><audio controls src="${SERVER_URL}${box.filePath}"></audio>`;
+    } else if (box.type === 'code') {
+      boxContainer.innerHTML = `<h4>${box.title}</h4><pre>${box.code}</pre>`;
     }
-  });
+  } catch (err) {
+    alert("Failed to fetch box");
+  }
+}
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const formData = new FormData(form);
+function promptAdminPassword() {
+  const password = prompt("Enter the admin password:");
+  if (password === '16394) {  // Change this if needed
+    adminAccess = true;
+    loadFlagged();
+  } else {
+    alert("Incorrect password!");
+  }
+}
 
-    try {
-      const res = await fetch(`${SERVER_URL}/api/upload`, {
-        method: 'POST',
-        body: formData
-      });
-      const data = await res.json();
-      alert(res.ok ? "Uploaded!" : "Error: " + data.error);
-      form.reset();
-      fileField.style.display = 'block';
-      codeField.style.display = 'none';
-    } catch (err) {
-      alert("Upload failed");
+async function loadFlagged() {
+  if (!adminAccess) {
+    alert("You must be logged in as admin to view flagged boxes.");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${SERVER_URL}/api/admin/flags`, {
+      headers: {
+        'admin-password': 'yourSecurePasswordHere'  // Send password in header
+      }
+    });
+    const flagged = await res.json();
+    const container = document.getElementById('flaggedBoxes');
+    container.innerHTML = '';
+
+    if (flagged.length === 0) {
+      container.innerHTML = "<p>No flagged boxes 🎉</p>";
+      return;
     }
-  });
 
-  document.getElementById('getBoxBtn').addEventListener('click', async () => {
-    try {
-      const res = await fetch(`${SERVER_URL}/api/box`);
-      const box = await res.json();
-
-      let html = `<h4>${box.title}</h4>`;
-      if (box.author) html += `<p class="text-muted">By: ${box.author}</p>`;
-
+    flagged.forEach(box => {
+      let html = `<div class="border rounded p-3 mb-3">
+        <strong>${box.title}</strong> ${box.author ? `by ${box.author}` : ''}<br>`;
       if (box.type === 'image') {
-        html += `<img src="${SERVER_URL}${box.filePath}" class="img-fluid" alt="mystery image">`;
+        html += `<img src="${SERVER_URL}${box.filePath}" class="img-fluid">`;
       } else if (box.type === 'audio') {
         html += `<audio controls src="${SERVER_URL}${box.filePath}"></audio>`;
       } else if (box.type === 'code') {
-        html += `<pre class="bg-light p-3 rounded"><code>${box.code}</code></pre>`;
+        html += `<pre class="bg-light p-2 rounded"><code>${box.code}</code></pre>`;
       }
+      html += `
+        <button class="btn btn-success mt-2 me-2" onclick="unflagBox('${box.id}')">✅ Approve</button>
+        <button class="btn btn-danger mt-2" onclick="deleteBox('${box.id}')">🗑️ Delete</button>
+      </div>`;
+      container.innerHTML += html;
+    });
+  } catch (err) {
+    alert("Failed to load flagged boxes");
+  }
+}
 
-      html += `<button class="btn btn-danger mt-2" onclick="flagBox('${box.id}')">🚩 Flag this box</button>`;
-      boxDisplay.innerHTML = html;
-    } catch {
-      alert("No mystery boxes available!");
+async function unflagBox(id) {
+  await fetch(`${SERVER_URL}/api/admin/unflag/${id}`, {
+    method: 'POST',
+    headers: {
+      'admin-password': 'yourSecurePasswordHere'  // Send password in header
     }
   });
-});
+  loadFlagged();
+}
 
-async function flagBox(id) {
-  if (!confirm("Flag this box for review?")) return;
-  try {
-    const res = await fetch(`${SERVER_URL}/api/flag/${id}`, { method: 'POST' });
-    alert("Box flagged for admin review.");
-    document.getElementById('boxDisplay').innerHTML = '';
-  } catch {
-    alert("Failed to flag.");
-  }
+async function deleteBox(id) {
+  if (!confirm("Delete this box permanently?")) return;
+  await fetch(`${SERVER_URL}/api/admin/delete/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'admin-password': 'yourSecurePasswordHere'  // Send password in header
+    }
+  });
+  loadFlagged();
 }
