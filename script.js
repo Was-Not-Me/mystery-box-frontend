@@ -1,4 +1,4 @@
-const SERVER_URL = 'https://server-zd6g.onrender.com'; //  Replace with your backend URL if needed
+const SERVER_URL = 'https://spiritual-trite-oregano.glitch.me/'; //  Replace with your backend URL if needed
 
 let adminAccess = false;
 
