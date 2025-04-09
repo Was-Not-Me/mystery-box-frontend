@@ -4,25 +4,110 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mystery Box</title>
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-  <link rel="stylesheet" href="style.css"> <!-- Optional: Add your CSS -->
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f8f9fa;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .container {
+      text-align: center;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      width: 300px;
+    }
+    h1 {
+      color: #333;
+    }
+    input, textarea, select {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .message {
+      margin-top: 20px;
+      color: green;
+    }
+  </style>
 </head>
 <body>
-  <div class="container mt-5">
-    <h1 class="text-center">Mystery Box</h1>
-    <button class="btn btn-primary" onclick="fetchBox()">Get Mystery Box</button>
-    <div id="mysteryBox"></div>
 
-    <!-- Admin Panel -->
-    <div class="card mt-5 shadow-sm">
-      <div class="card-body">
-        <h4 class="card-title">🔒 Admin Panel</h4>
-        <button class="btn btn-warning mb-3" onclick="promptAdminPassword()">Load Flagged Boxes</button>
-        <div id="flaggedBoxes"></div>
-      </div>
-    </div>
+  <div class="container">
+    <h1>Upload Mystery Box</h1>
+    <form id="uploadForm">
+      <input type="text" id="title" placeholder="Title" required>
+      <input type="text" id="author" placeholder="Author (Optional)">
+      <select id="type" required>
+        <option value="">Select Type</option>
+        <option value="file">File</option>
+        <option value="code">Code</option>
+      </select>
+      <textarea id="code" placeholder="Enter your code (only if selected code type)" style="display:none;"></textarea>
+      <input type="file" id="file" style="display:none;">
+      <button type="submit">Upload</button>
+    </form>
+    <div class="message" id="message"></div>
   </div>
 
-  <script src="script.js"></script>
+  <script>
+    document.getElementById('type').addEventListener('change', function() {
+      const type = this.value;
+      document.getElementById('file').style.display = type === 'file' ? 'block' : 'none';
+      document.getElementById('code').style.display = type === 'code' ? 'block' : 'none';
+    });
+
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const formData = new FormData();
+      formData.append('title', document.getElementById('title').value);
+      formData.append('author', document.getElementById('author').value);
+      formData.append('type', document.getElementById('type').value);
+
+      const code = document.getElementById('code').value;
+      const file = document.getElementById('file').files[0];
+
+      if (document.getElementById('type').value === 'code') {
+        formData.append('code', code);
+      } else if (document.getElementById('type').value === 'file') {
+        formData.append('file', file);
+      }
+
+      fetch('https://spiritual-trite-oregano.glitch.me/', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          document.getElementById('message').textContent = 'Mystery box uploaded successfully!';
+        } else {
+          document.getElementById('message').textContent = `Error: ${data.error}`;
+        }
+      })
+      .catch(error => {
+        document.getElementById('message').textContent = `Error: ${error.message}`;
+      });
+    });
+  </script>
 </body>
 </html>
