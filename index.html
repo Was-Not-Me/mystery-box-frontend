@@ -5,109 +5,128 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mystery Box</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f8f9fa;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-    .container {
-      text-align: center;
-      background: #fff;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      width: 300px;
-    }
-    h1 {
-      color: #333;
-    }
-    input, textarea, select {
-      width: 100%;
-      padding: 8px;
-      margin-bottom: 10px;
-      border-radius: 5px;
-      border: 1px solid #ddd;
-    }
-    button {
-      width: 100%;
-      padding: 10px;
-      background-color: #007bff;
-      color: #fff;
-      border: none;
-      cursor: pointer;
-      border-radius: 5px;
-    }
-    button:hover {
-      background-color: #0056b3;
-    }
-    .message {
-      margin-top: 20px;
-      color: green;
-    }
+    body { font-family: sans-serif; padding: 2rem; }
+    section { margin-bottom: 3rem; }
+    input, textarea, select, button { display: block; margin: 0.5rem 0; width: 100%; padding: 0.5rem; }
+    pre { background: #f4f4f4; padding: 1rem; border-radius: 5px; }
+    .hidden { display: none; }
   </style>
 </head>
 <body>
+  <h1>Mystery Box</h1>
 
-  <div class="container">
-    <h1>Upload Mystery Box</h1>
+  <!-- Upload Form -->
+  <section>
+    <h2>Upload a Mystery Box</h2>
     <form id="uploadForm">
-      <input type="text" id="title" placeholder="Title" required>
-      <input type="text" id="author" placeholder="Author (Optional)">
-      <select id="type" required>
+      <input type="text" name="title" placeholder="Title" required>
+      <input type="text" name="author" placeholder="Author (optional)">
+      <select name="type" required>
         <option value="">Select Type</option>
         <option value="file">File</option>
         <option value="code">Code</option>
       </select>
-      <textarea id="code" placeholder="Enter your code (only if selected code type)" style="display:none;"></textarea>
-      <input type="file" id="file" style="display:none;">
+      <input type="file" name="file" class="upload-field">
+      <textarea name="code" placeholder="Paste your code here" class="upload-field"></textarea>
       <button type="submit">Upload</button>
     </form>
-    <div class="message" id="message"></div>
-  </div>
+    <p id="uploadMessage"></p>
+  </section>
+
+  <!-- Get Random Box -->
+  <section>
+    <h2>Open a Mystery Box</h2>
+    <button id="getBoxBtn">Open Box</button>
+    <div id="boxResult"></div>
+  </section>
+
+  <!-- Admin Dashboard -->
+  <section>
+    <h2>Admin Dashboard</h2>
+    <input type="password" id="adminPassword" placeholder="Admin Password">
+    <button id="loadFlags">Load Flagged Boxes</button>
+    <div id="flaggedBoxes"></div>
+  </section>
 
   <script>
-    document.getElementById('type').addEventListener('change', function() {
-      const type = this.value;
-      document.getElementById('file').style.display = type === 'file' ? 'block' : 'none';
-      document.getElementById('code').style.display = type === 'code' ? 'block' : 'none';
+    const API_BASE = 'https://your-glitch-backend.glitch.me'; // Replace with your backend URL
+
+    const uploadForm = document.getElementById('uploadForm');
+    const uploadMessage = document.getElementById('uploadMessage');
+
+    const uploadFields = document.querySelectorAll('.upload-field');
+    const typeSelect = uploadForm.querySelector('[name="type"]');
+    typeSelect.addEventListener('change', () => {
+      uploadFields.forEach(el => el.style.display = 'none');
+      if (typeSelect.value === 'file') uploadForm.querySelector('[name="file"]').style.display = 'block';
+      else if (typeSelect.value === 'code') uploadForm.querySelector('[name="code"]').style.display = 'block';
     });
 
-    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    uploadForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-
-      const formData = new FormData();
-      formData.append('title', document.getElementById('title').value);
-      formData.append('author', document.getElementById('author').value);
-      formData.append('type', document.getElementById('type').value);
-
-      const code = document.getElementById('code').value;
-      const file = document.getElementById('file').files[0];
-
-      if (document.getElementById('type').value === 'code') {
-        formData.append('code', code);
-      } else if (document.getElementById('type').value === 'file') {
-        formData.append('file', file);
+      const formData = new FormData(uploadForm);
+      const type = formData.get('type');
+      if (type === 'code') {
+        const json = Object.fromEntries(formData.entries());
+        const res = await fetch(`${API_BASE}/api/upload`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(json)
+        });
+        uploadMessage.textContent = await res.text();
+      } else {
+        const res = await fetch(`${API_BASE}/api/upload`, {
+          method: 'POST',
+          body: formData
+        });
+        uploadMessage.textContent = await res.text();
       }
-
-      fetch('https://spiritual-trite-oregano.glitch.me/', {
-        method: 'POST',
-        body: formData
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          document.getElementById('message').textContent = 'Mystery box uploaded successfully!';
-        } else {
-          document.getElementById('message').textContent = `Error: ${data.error}`;
-        }
-      })
-      .catch(error => {
-        document.getElementById('message').textContent = `Error: ${error.message}`;
-      });
     });
+
+    document.getElementById('getBoxBtn').addEventListener('click', async () => {
+      const res = await fetch(`${API_BASE}/api/box`);
+      const data = await res.json();
+      const result = document.getElementById('boxResult');
+      result.innerHTML = `<h3>${data.title}</h3><p><strong>Author:</strong> ${data.author || 'Anonymous'}</p>`;
+      if (data.type === 'file') {
+        result.innerHTML += `<a href="${API_BASE}${data.filePath}" download>Download File</a>`;
+      } else {
+        result.innerHTML += `<pre>${data.code}</pre>`;
+      }
+      result.innerHTML += `<button onclick="flagBox('${data.id}')">Flag as Inappropriate</button>`;
+    });
+
+    async function flagBox(id) {
+      await fetch(`${API_BASE}/api/flag/${id}`, { method: 'POST' });
+      alert('Box flagged. Thank you!');
+    }
+
+    document.getElementById('loadFlags').addEventListener('click', async () => {
+      const password = document.getElementById('adminPassword').value;
+      const res = await fetch(`${API_BASE}/api/admin/flags`, {
+        headers: { 'admin-password': password }
+      });
+      const boxes = await res.json();
+      const list = document.getElementById('flaggedBoxes');
+      list.innerHTML = boxes.map(b => `
+        <div>
+          <strong>${b.title}</strong> by ${b.author || 'Anonymous'}<br>
+          ${b.type === 'code' ? `<pre>${b.code}</pre>` : `<a href="${API_BASE}${b.filePath}" download>Download</a>`}
+          <button onclick="adminAction('unflag', '${b.id}')">Unflag</button>
+          <button onclick="adminAction('delete', '${b.id}')">Delete</button>
+        </div>
+      `).join('<hr>');
+    });
+
+    async function adminAction(action, id) {
+      const password = document.getElementById('adminPassword').value;
+      const method = action === 'delete' ? 'DELETE' : 'POST';
+      await fetch(`${API_BASE}/api/admin/${action}/${id}`, {
+        method,
+        headers: { 'admin-password': password }
+      });
+      document.getElementById('loadFlags').click();
+    }
   </script>
 </body>
 </html>
